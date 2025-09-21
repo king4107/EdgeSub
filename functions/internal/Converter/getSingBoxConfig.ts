@@ -39,10 +39,24 @@ export async function getSingBoxConfig (
         }
     }).filter(i => !!i);
     // append proxies
+    SingBoxConfig.outbounds = SingBoxConfig.outbounds || [];
     SingBoxConfig.outbounds = [
         ...SingBoxConfig.outbounds, 
         ...Proxies.map(i => Dumper[i.__Type](i))
     ]
+    // check for essential outbounds
+    if (!SingBoxConfig.outbounds.find(i => i.tag === "DIRECT")) {
+        SingBoxConfig.outbounds.push({
+            type: "direct",
+            tag: "DIRECT"
+        })
+    }
+    if (!SingBoxConfig.outbounds.find(i => i.tag === "REJECT")) {
+        SingBoxConfig.outbounds.push({
+            type: "block",
+            tag: "REJECT"
+        })
+    }
 
     // proxy clash external ui archive
     if (SingBoxConfig.experimental.clash_api.external_ui_download_url) {
@@ -179,6 +193,16 @@ export async function getSingBoxConfig (
             continue
         }
 
+        // handle GEOIP LAN
+        if (type === "geoip" && payload.toLowerCase() === "lan") {
+            SingBoxConfig.route.rules.push({
+                ip_is_private: true,
+                action: "route",
+                outbound: outboundID
+            });
+            continue;
+        }
+
         // handle GEOIP and GEOSITE
         if (type === "geoip" || type === "geosite") {
             const RuleSetTag = `${type}-${payload.toLowerCase()}`;
@@ -206,6 +230,21 @@ export async function getSingBoxConfig (
             // use the appended rule-set to route 
             SingBoxConfig.route.rules.push({
                 rule_set: RuleSetTag,
+                action: "route",
+                outbound: outboundID
+            });
+            continue;
+        }
+
+        // handle the types that payload need to be number
+        if (type === "source_port" || type === "port") {
+            let numPayload = Number(payload);
+            if (isNaN(numPayload)) {
+                console.warn(`[getSingBoxConfig] invalid port number: ${payload}, skiping rule ${i}`);
+                continue;
+            }
+            SingBoxConfig.route.rules.push({
+                [type]: numPayload,
                 action: "route",
                 outbound: outboundID
             });
