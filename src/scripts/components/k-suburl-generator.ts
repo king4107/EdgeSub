@@ -153,7 +153,7 @@ class SubURLGenerator extends HTMLElement {
         }
 
         for (let [key, value] of Object.entries({
-            ...filterObject(Config.Extended, (key) => this.GetEndpoint().ExtendConfig.includes(key)),
+            ...filterObject(Config.Extended, (key) => (this.GetEndpoint().ExtendConfig || []).includes(key)),
             ...Config.UniversalExtended,
         })) {
             if (!String(value)) {
